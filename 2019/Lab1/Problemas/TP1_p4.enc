@@ -1,0 +1,98 @@
+            .cpu cortex-m4          // Indica el procesador de destino
+            .syntax unified         // Habilita las instrucciones Thumb-2
+            .thumb                  // Usar instrucciones Thumb y no ARM
+
+            .section .data          // Define la sección de variables (RAM)
+
+divisor:  .byte 0x43,0x23 //Cantidad de interrupciones desde en el ultimo segundo
+
+segundos: .byte 0x03,0x45 //Decenas y unidades de los segundos de la hora actual
+
+hora:     .byte 0x05,0x23,0x43,0x12 //Hora y minutos de la hora actual del reloj
+
+            .section .text          // Define la sección de código (FLASH)
+            .global reset           // Define el punto de entrada del código
+  
+reset:  LDR R0,=divisor //Apunto a la direcc de divisor
+        LDRB R1,[R0] //obtengo el divisor
+        LDR R2,=segundos //apunto a la direc de los segundos
+		LDRB R3,[R2] //obtengo el primer byte de los segundos(primer digito)
+		LDR R4,=hora
+		
+        ADD R1,#1 //sumo uno al divisor
+		STRB R1,[R0] //guardo en memoria el nuevo divisor
+		
+act_seg_1er_dig:
+		CMP R1,#1000 //pregunto si ha pasado 1ms??
+		ITTTT EQ 
+		MOVEQ R1,#0 // pongo el divisor en cero
+		STREQB R1,[R0] //guardo el nuevo divisor
+		ADDEQ R3,#1 //aumento en 1 el primer byte de los segundos
+		STREQB R3,[R2] //guardo el nuevo valor del primer byte de los segundos
+		
+act_seg_2do_dig:
+        CMP R3,#9 //pregunto si debo cambiar el segundo digito de los segundos
+		BLO act_min_1er_dig		
+		MOV R3,#0 //pongo en cero el primer digito de los segundos
+		STRB R3,[R2] //lo guardo en memoria
+		LDRB R3,[R2,#1] //obtengo el segundo digito (segundo byte) de los segundos
+		ADD R3,#1 //aumento en uno el segundo digito de los segundos
+		STRB R3,[R2,#1] //guardo en memoria el valor del segundo digito
+		
+act_min_1er_dig:		
+		LDRB R1,[R4] //accedo a los min
+		LDRB R3,[R2,#1]
+				
+		CMP R3,#5
+		BLO act_min_2do_dig
+		MOV R3,#0 //la dcena de los seg en cero
+		STRB R3,[R2,#1] //guardo el cambio en memoria
+		ADD R1,#1 //sumo 1 al primer dig de los min		
+		STRB R1,[R4] //guardo en memoria
+
+act_min_2do_dig:	
+		LDRB R1,[R4] //accedo al primer dig de los min
+		
+		CMP R1,#9
+		BLO act_hs_1er_dig
+		MOV R1,#0
+		STRB R1,[R4] //pongo en 0 el primer dig de los min
+		LDRB R1,[R4,#1]
+		ADD R1,#1		
+		STRB R1,[R4,#1]
+
+act_hs_1er_dig:
+		LDRB R1,[R4,#1] //cargo el seg dig de los min
+		
+		CMP R1,#5
+		BLO act_hs_2do_dig
+		MOV R1,#0
+		STRB R1,[R4,#1] //pongo el seg dig de los min en 0	
+		LDRB R1,[R4,#2] //cargo el primer dig de la hora
+		ADD R1,#1 //aumento en uno el primer dig de la hora
+		STRB R1,[R4,#2] //guardo en memoria
+
+act_hs_2do_dig:
+        LDRB R1,[R4,#3]
+		LDRB R2,[R4,#2]
+		
+		CMP R1,#2
+        ITT EQ		
+		CMPEQ R2,#3
+		ITT HI
+		MOVHI R1,#0x0000
+		STRHI R1,[R4,#2] //pongo en cero los dos dig de la hora
+		
+		CMP R2,#3
+		ITTTT HI
+		MOVHI R2,#0
+		STRBHI R2,[R4,#2]
+		ADDHI R1,#1
+		STRHI R1,[R4,#3]
+				
+			  		
+stop:       B     stop              // Lazo infinito para terminar la ejecución
+
+            .pool                   // Almacenar las constantes de código
+		
+				   

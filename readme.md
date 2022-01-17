@@ -1,3 +1,3 @@
 # ARM64 - Lenguaje ensamblador
 
-Codigo para ejecutar en arquitectura ARM64
+Codigo ensamblador para ejecutar en arquitectura ARM64

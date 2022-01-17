@@ -1,0 +1,8 @@
+Notas - 16/09/19
+--------------------------
+
++Direccion BASE en hexa : 10080000
+
++ Para acceder a la direccion de memoria 268959752 en maquina 2019 , seria : 
+
+*(int)268959752 en pestaña WATCH

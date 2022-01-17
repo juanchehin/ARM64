@@ -1,0 +1,6 @@
+Notas - 16/09/19
+--------------------------
+
++Direccion BASE en hexa : 10080000
+
+	En maquina 2019 , seria : *(int)268959752 en pestaña WATCH
