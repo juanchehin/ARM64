@@ -1,0 +1,529 @@
+/*****************************************************************************************************/
+/*                                                                                  */
+/*Laboratorio Número 3 - Interrupciones y GPIO - Problema 3: Reloj                                   */
+/*Sistemas con Microprocesadores y Microcontroladores - Ingeniería en Computación                    */
+/*Facultad de Ciencias Exactas y Tecnología - Universidad Nacional de Tucumán                        */
+/*****************************************************************************************************/
+
+    .cpu cortex-m4          // Indica el procesador de destino  
+    .syntax unified         // Habilita las instrucciones Thumb-2
+    .thumb                  // Usar instrucciones Thumb y no ARM
+
+    .include "configuraciones/lpc4337.s"
+    .include "configuraciones/rutinas.s"
+
+// Recursos utilizados por el segmento A
+    .equ SEG_A_PORT,    4
+    .equ SEG_A_PIN,     0
+    .equ SEG_A_BIT,     0
+    .equ SEG_A_MASK,    (1 << SEG_A_BIT)
+
+// Recursos utilizados por el segmento B
+    .equ SEG_B_PORT,    4
+    .equ SEG_B_PIN,     1
+    .equ SEG_B_BIT,     1
+    .equ SEG_B_MASK,    (1 << SEG_B_BIT)
+
+// Recursos utilizados por el segmento C
+    .equ SEG_C_PORT,    4
+    .equ SEG_C_PIN,     2
+    .equ SEG_C_BIT,     2
+    .equ SEG_C_MASK,    (1 << SEG_C_BIT)
+
+// Recursos utilizados por el segmento D
+    .equ SEG_D_PORT,    4
+    .equ SEG_D_PIN,     3
+    .equ SEG_D_BIT,     3
+    .equ SEG_D_MASK,    (1 << SEG_D_BIT)
+
+// Recursos utilizados por el segmento E
+    .equ SEG_E_PORT,    4
+    .equ SEG_E_PIN,     4
+    .equ SEG_E_BIT,     4
+    .equ SEG_E_MASK,    (1 << SEG_E_BIT)
+
+// Recursos utilizados por el segmento F
+    .equ SEG_F_PORT,    4
+    .equ SEG_F_PIN,     5
+    .equ SEG_F_BIT,     5
+    .equ SEG_F_MASK,    (1 << SEG_F_BIT)
+
+// Recursos utilizados por el segmento G
+    .equ SEG_G_PORT,    4
+    .equ SEG_G_PIN,     6
+    .equ SEG_G_BIT,     6
+    .equ SEG_G_MASK,    (1 << SEG_G_BIT)
+
+// Recursos utilizados por el digito
+    .equ SEG_DP_PORT,    6
+    .equ SEG_DP_PIN,     8
+    .equ SEG_DP_BIT,     16
+    .equ SEG_DP_MASK,    (1 << SEG_DP_BIT)
+
+// Recursos utilizados por el display-7seg
+    .equ SEG_GPIO,      2
+    .equ SEG_MASK,      ( SEG_A_MASK | SEG_B_MASK | SEG_C_MASK | SEG_D_MASK | SEG_E_MASK | SEG_F_MASK | SEG_G_MASK )
+
+// Recursos utilizados por el display-Punto Decimal
+    .equ SEGD_GPIO,      5
+    .equ SEGD_MASK,      ( SEG_DP_MASK )
+
+// Recursos utilizados por el digito 1
+    .equ DIG_1_PORT,    0
+    .equ DIG_1_PIN,     0
+    .equ DIG_1_BIT,     0
+    .equ DIG_1_MASK,    (1 << DIG_1_BIT)
+
+// Recursos utilizados por el digito 2
+    .equ DIG_2_PORT,    0
+    .equ DIG_2_PIN,     1
+    .equ DIG_2_BIT,     1
+    .equ DIG_2_MASK,    (1 << DIG_2_BIT)
+
+// Recursos utilizados por el digito 3
+    .equ DIG_3_PORT,    1
+    .equ DIG_3_PIN,     15
+    .equ DIG_3_BIT,     2
+    .equ DIG_3_MASK,    (1 << DIG_3_BIT)
+
+// Recursos utilizados por el digito 4
+    .equ DIG_4_PORT,    1
+    .equ DIG_4_PIN,     17
+    .equ DIG_4_BIT,     3
+    .equ DIG_4_MASK,    (1 << DIG_4_BIT)
+
+// Recursos utilizados por los displays
+    .equ DIG_GPIO,      0
+    .equ DIG_MASK,      ( DIG_1_MASK | DIG_2_MASK | DIG_3_MASK | DIG_4_MASK )
+
+// Recursos utilizados por la primera tecla
+    .equ TEC_1_PORT,    4
+    .equ TEC_1_PIN,     8
+    .equ TEC_1_BIT,     12
+    .equ TEC_1_MASK,    (1 << TEC_1_BIT)
+
+// Recursos utilizados por la segunda tecla
+    .equ TEC_2_PORT,    4
+    .equ TEC_2_PIN,     9
+    .equ TEC_2_BIT,     13
+    .equ TEC_2_MASK,    (1 << TEC_2_BIT)
+
+// Recursos utilizados por la tercera tecla
+    .equ TEC_3_PORT,    4
+    .equ TEC_3_PIN,     10
+    .equ TEC_3_BIT,     14
+    .equ TEC_3_MASK,    (1 << TEC_3_BIT)
+
+// Recursos utilizados por la cuarta tecla
+    .equ TEC_4_PORT,    6
+    .equ TEC_4_PIN,     7
+    .equ TEC_4_BIT,     15
+    .equ TEC_4_MASK,    (1 << TEC_4_BIT)
+
+// Recursos utilizados por la tecla aceptar
+    .equ TEC_ACT_PORT,    3
+    .equ TEC_ACT_PIN,     1
+    .equ TEC_ACT_BIT,     8
+    .equ TEC_ACT_MASK,    (1 << TEC_ACT_BIT)
+
+// Recursos utilizados por la tecla cancelar
+    .equ TEC_CNL_PORT,    3
+    .equ TEC_CNL_PIN,     2
+    .equ TEC_CNL_BIT,     9
+    .equ TEC_CNL_MASK,    (1 << TEC_CNL_BIT)
+
+// Recursos utilizados por el teclado
+    .equ TEC_GPIO,      5
+    .equ TEC_MASK,      ( TEC_1_MASK | TEC_2_MASK | TEC_3_MASK | TEC_4_MASK | TEC_ACT_MASK | TEC_ACT_MASK)
+
+    .equ TEC1, (TEC_GPIO << 5 | TEC_1_BIT)
+    .equ TEC2, (TEC_GPIO << 5 | TEC_2_BIT)
+    .equ TEC3, (TEC_GPIO << 5 | TEC_3_BIT)
+    .equ TEC4, (TEC_GPIO << 5 | TEC_4_BIT)
+    .equ TEC_ACT, (TEC_GPIO << 5 | TEC_ACT_BIT)
+    .equ TEC_CNL, (TEC_GPIO << 5 | TEC_CNL_BIT)
+
+    .section .isr
+    .word   stack                       //  0: Initial stack pointer value
+    .word   reset+1                     //  1: Initial program counter value: Program entry point
+    .word   handler+1                   //  2: Non mascarable interrupt service routine
+    .word   handler+1                   //  3: Hard fault system trap service routine
+    .word   handler+1                   //  4: Memory manager system trap service routine
+    .word   handler+1                   //  5: Bus fault system trap service routine
+    .word   handler+1                   //  6: Usage fault system tram service routine
+    .word   0                           //  7: Reserved entry
+    .word   0                           //  8: Reserved entry
+    .word   0                           //  9: Reserved entry
+    .word   0                           // 10: Reserved entry
+    .word   handler+1                   // 11: System service call trap service routine
+    .word   0                           // 12: Reserved entry
+    .word   0                           // 13: Reserved entry
+    .word   handler+1                   // 14: Pending service system trap service routine
+    .word   systick_isr+1               // 15: System tick service routine
+    .word   handler+1                   // 16: IRQ 0: DAC service routine
+    .word   handler+1                   // 17: IRQ 1: M0APP service routine
+    .word   handler+1                   // 18: IRQ 2: DMA service routine
+    .word   0                           // 19: Reserved entry
+    .word   handler+1                   // 20: IRQ 4: FLASHEEPROM service routine
+    .word   handler+1                   // 21: IRQ 5: ETHERNET service routine
+    .word   handler+1                   // 22: IRQ 6: SDIO service routine
+    .word   handler+1                   // 23: IRQ 7: LCD service routine
+    .word   handler+1                   // 24: IRQ 8: USB0 service routine
+    .word   handler+1                   // 25: IRQ 9: USB1 service routine
+    .word   handler+1                   // 26: IRQ 10: SCT service routine
+    .word   handler+1                   // 27: IRQ 11: RTIMER service routine
+    .word   handler+1                   // 28: IRQ 12: TIMER0 service routine
+    .word   handler+1                   // 29: IRQ 13: TIMER1 service routine
+    .word   handler+1                   // 30: IRQ 14: TIMER2 service routine
+    .word   handler+1                   // 31: IRQ 15: TIMER3 service routine
+    .word   handler+1                   // 32: IRQ 16: MCPWM service routine
+    .word   handler+1                   // 33: IRQ 17: ADC0 service routine
+    .word   handler+1                   // 34: IRQ 18: I2C0 service routine
+    .word   handler+1                   // 35: IRQ 19: I2C1 service routine
+    .word   handler+1                   // 36: IRQ 20: SPI service routine
+    .word   handler+1                   // 37: IRQ 21: ADC1 service routine
+    .word   handler+1                   // 38: IRQ 22: SSP0 service routine
+    .word   handler+1                   // 39: IRQ 23: SSP1 service routine
+    .word   handler+1                   // 40: IRQ 24: USART0 service routine
+    .word   handler+1                   // 41: IRQ 25: UART1 service routine
+    .word   handler+1                   // 42: IRQ 26: USART2 service routine
+    .word   handler+1                   // 43: IRQ 27: USART3 service routine
+    .word   handler+1                   // 44: IRQ 28: I2S0 service routine
+    .word   handler+1                   // 45: IRQ 29: I2S1 service routine
+    .word   handler+1                   // 46: IRQ 30: SPIFI service routine
+    .word   handler+1                   // 47: IRQ 31: SGPIO service routine
+    .word   gpio_isr+1                  // 48: IRQ 32: PIN_INT0 service routine
+    .word   gpio_isr+1                  // 49: IRQ 33: PIN_INT1 service routine
+    .word   gpio_isr+1                  // 50: IRQ 34: PIN_INT2 service routine
+    .word   gpio_isr+1                  // 51: IRQ 35: PIN_INT3 service routine
+    .word   handler+1                   // 52: IRQ 36: PIN_INT4 service routine
+    .word   handler+1                   // 53: IRQ 37: PIN_INT5 service routine
+    .word   handler+1                   // 54: IRQ 38: PIN_INT6 service routine
+    .word   handler+1                   // 55: IRQ 39: PIN_INT7 service routine
+    .word   handler+1                   // 56: IRQ 40: GINT0 service routine
+    .word   handler+1                   // 56: IRQ 40: GINT1 service routine
+
+    .section .data                      // Define la sección de variables (RAM)
+espera:   .byte 0x01                    // Variable compartida con el tiempo de espera
+horas:    .byte 0x08, 0x05, 0x03, 0x02  //Define vector de hora:minutos en memoria
+segundos: .byte 0x00, 0x00              //Define vector de segundos en memoria
+refresco: .byte 0x00                    //Define variable global del numero de digito
+
+    .global reset                       //Define el punto de entrada del código
+    .section .text                      //Define la sección de código (FLASH)
+    .func main                          //Inidica al depurador el inicio de una funcion
+reset:
+    CPSID I                             //Deshabilita interrupciones
+
+    // Mueve el vector de interrupciones al principio de la segunda RAM
+    LDR R1,=VTOR
+    LDR R0,=#0x10080000
+    STR R0,[R1]
+    
+    BL systick_init                     //Llama a una subrutina para configurar el systick
+    
+    //Configura los pines de los segmentos como gpio sin pull-up
+    LDR R1,=SCU_BASE
+    MOV R0,#(SCU_MODE_INACT | SCU_MODE_INBUFF_EN | SCU_MODE_ZIF_DIS | SCU_MODE_FUNC0)
+    STR R0,[R1,#(SEG_A_PORT << 7 | SEG_A_PIN << 2)]
+    STR R0,[R1,#(SEG_B_PORT << 7 | SEG_B_PIN << 2)]
+    STR R0,[R1,#(SEG_C_PORT << 7 | SEG_C_PIN << 2)]
+    STR R0,[R1,#(SEG_D_PORT << 7 | SEG_D_PIN << 2)]
+    STR R0,[R1,#(SEG_E_PORT << 7 | SEG_E_PIN << 2)]
+    STR R0,[R1,#(SEG_F_PORT << 7 | SEG_F_PIN << 2)]
+    STR R0,[R1,#(SEG_G_PORT << 7 | SEG_G_PIN << 2)]
+
+    MOV R0,#(SCU_MODE_INACT | SCU_MODE_INBUFF_EN | SCU_MODE_ZIF_DIS | SCU_MODE_FUNC4)
+    STR R0,[R1,#(SEG_DP_PORT << 7 | SEG_DP_PIN << 2)]
+    
+    // Configuración de los pines de digitos como gpio sin pull-up
+    MOV R0,#(SCU_MODE_INACT | SCU_MODE_INBUFF_EN | SCU_MODE_ZIF_DIS | SCU_MODE_FUNC0)
+    STR R0,[R1,#(DIG_1_PORT << 7 | DIG_1_PIN << 2)]
+    STR R0,[R1,#(DIG_2_PORT << 7 | DIG_2_PIN << 2)]
+    STR R0,[R1,#(DIG_3_PORT << 7 | DIG_3_PIN << 2)]
+    STR R0,[R1,#(DIG_4_PORT << 7 | DIG_4_PIN << 2)]
+    
+    // Configura los pines de las teclas como gpio con pull-up
+    MOV R0,#(SCU_MODE_PULLDOWN | SCU_MODE_INBUFF_EN | SCU_MODE_ZIF_DIS | SCU_MODE_FUNC4)
+    STR R0,[R1,#(TEC_1_PORT << 7 | TEC_1_PIN << 2)]
+    STR R0,[R1,#(TEC_2_PORT << 7 | TEC_2_PIN << 2)]
+    STR R0,[R1,#(TEC_3_PORT << 7 | TEC_3_PIN << 2)]
+    STR R0,[R1,#(TEC_4_PORT << 7 | TEC_4_PIN << 2)]
+    STR R0,[R1,#(TEC_ACT_PORT << 7 | TEC_ACT_PIN << 2)]
+    STR R0,[R1,#(TEC_CNL_PORT << 7 | TEC_CNL_PIN << 2)]
+
+    // Selecciono las cuatro teclas como fuente de interrupcion
+    LDR R0,=(TEC4 << 24 | TEC3 << 16 | TEC2 << 8 | TEC1 << 0)
+    STR R0,[R1,#PINTSEL0]
+
+    // Apaga todos los bits gpio de los segmentos
+    LDR R1,=GPIO_CLR0
+    LDR R0,=SEG_MASK
+    STR R0,[R1,#(SEG_GPIO << 2)]
+
+    // Apagado de todos bits gpio de los digitos
+    LDR R0,=DIG_MASK
+    STR R0,[R1,#(DIG_GPIO << 2)]
+
+    // Configura los bits gpio de los segmentos como salidas
+    LDR R1,=GPIO_DIR0
+    LDR R0,[R1,#(SEG_GPIO << 2)]
+    ORR R0,#SEG_MASK
+    STR R0,[R1,#(SEG_GPIO << 2)]
+
+    // Configuración de los bits gpio de digitos como salidas
+    LDR R0,[R1,#(DIG_GPIO << 2)]
+    ORR R0,#DIG_MASK
+    STR R0,[R1,#(DIG_GPIO << 2)]
+
+    // Configura los bits gpio de los botones como entradas
+    LDR R0,[R1,#(TEC_GPIO << 2)]
+    AND R0,#~TEC_MASK
+    STR R0,[R1,#(TEC_GPIO << 2)]
+
+    // Configuro los pines para operacion por flancos
+    LDR R4,=PINT_BASE
+    MOV R0,#0x00
+    STR R0,[R4,#ISEL]
+    MOV R0,#0xFF
+    STR R0,[R4,#CIENF]
+    STR R0,[R4,#CIENR]
+    MOV R0,#0x03
+    STR R0,[R4,#SIENR]
+    MOV R0,#0x05
+    STR R0,[R4,#SIENF]
+
+    // Borro los pedidos pendientes de interrupciones del GPIO
+    MOV R0,#0xFF
+    STR R0,[R4,#IST]
+
+    LDR R1,=NVIC_ICPR1
+    MOV R0,0x0F
+    STR R0,[R1]
+
+    // Habilito los pedidos de interrupciones del GPIO en el NVIC
+    LDR R1,=NVIC_ISER1
+    MOV R0,0x0F
+    STR R0,[R1]
+
+    CPSIE I                            // Rehabilita interrupciones
+
+    // Define los punteros para usar en el programa
+    LDR R4,=GPIO_PIN0
+    LDR R5,=GPIO_NOT0
+
+//Todo se hace por interrupciones    
+stop:
+    B stop
+    .pool                               // Almacenar las constantes de código
+
+    .endfunc    
+
+// Rutina de inicialización del SysTick
+    .func systick_init
+systick_init: 
+    // Configurar prioridad de la interrupcion
+    LDR R1,=SHPR3                       // Apunta al registro de prioridades
+    LDR R0,[R1]                         // Carga las prioridades actuales
+    MOV R2,#2                           // Fija la prioridad en 2
+    BFI R0,R2,#29,#3                    // Inserta el valor en el campo 
+    STR R0,[R1]                         // Actualiza las prioridades
+
+    // Habilitar el SysTick con el reloj del nucleo
+    LDR R1,=SYST_CSR    
+    MOV R0,#0x00
+    STR R0,[R1]                         // Quita ENABLE
+
+    // Configurar el desborde para un periodo de 100 ms
+    LDR R1,=SYST_RVR
+    LDR R0,=#(480000 - 1)
+    STR R0,[R1]                         // Especifica valor RELOAD
+
+    // Inicializar el valor actual del contador
+    // Escribir cualquier valor limpia el contador
+    LDR R1,=SYST_CVR 
+    MOV R0,#0
+    STR R0,[R1]                         // Limpia COUNTER y flag COUNT
+    
+    // Habilita el SysTick con el reloj del nucleo
+    LDR R1,=SYST_CSR    
+    MOV R0,#0x07
+    STR R0,[R1]                         // Fija ENABLE, TICKINT y CLOCK_SRC
+
+    BX  LR                              // Retorna al programa principal
+    .pool                               // Almacena las constantes de código
+    .endfunc
+
+actualizar_hora:
+    PUSH {R4,R5,R6,R7}                  //Guarda los registros r4, r5
+    MOV R0, #0                          //Limpiar acarreo
+    LDR  R5,=espera                     //Apunta R5 a espera
+    LDRB R4,[R5]                        //Carga el valor de espera
+    SUBS R4,#1                          //Decrementa el valor de espera
+    BHI  actualizar_espera              //Espera > 0, Si No pasaron 100 veces no actualiza segundos
+
+actualizar_segundos:    
+    MOV R0, #1                          //Setear acarreo, o sea, aumentar un segundo
+    LDR R1, =segundos                   //Puntero a los segundos
+    LDRB R2, [R1]                       //Cargo unidad de segundos
+    LDRB R3, [R1, #1]                   //Cargo decenas de segundos
+    ADD R2, R0                          //Sumo un segundo (suma el acarreo)
+    CMP R2, 0x9                         //Comparo unidad con 9
+    ITT HI                              //Si es mayor...
+    MOVHI R2, #0                        //Se convierte en 0 y...
+    ADDHI R3, R0                        //Aumento en una unidad la decena
+    CMP R3, 0x05                        //Comparola decena con 5
+    ITE HI                              //Si es mayor...
+    MOVHI R3, #0                        //Se convierte en 0 (acarreo se mantiene para aumentar minuto)
+    MOVLS R0, #0                        //Sino, el acarreo se hace 0
+    STRB R2, [R1]                       //Guardo en memoria la unidad de segundos
+    STRB R3, [R1, #1]                   //Guardo en memoria la decena de segundos
+    LDR  R4,=100                        //Vuelvo a cargar espera con 100 iteraciones (con este valor 1min=30seg)
+actualizar_espera:    
+    STRB R4,[R5]                        //Actualiza la variable espera
+    
+minuto_hora:
+    LDR R1, =horas                      //Puntero al vector de horas y minutos
+    LDRB R4, [R1]                       //Cargo unidad de minutos
+    LDRB R5, [R1, #1]                   //Cargo decena de minutos
+    LDRB R6, [R1, #2]                   //Cargo unidad de hora
+    LDRB R7, [R1, #3]                   //Cargo decena de hora
+    //MINUTOS
+    ADD R4, R0                          //Sumo un minuto (el acarreo de la decena de segundo)
+    CMP R4, 0x9                         //Comparo unidad con 9
+    ITT HI                              //Si es mayor...
+    MOVHI R4, #0                        //Se convierte en 0 y...
+    ADDHI R5, R0                        //Aumento en una unidad la decena
+    CMP R5, 0x05                        //Comparo con 5 la decena
+    ITTE HI                             //Si es mayor...
+    MOVHI R5, #0                        //Se convierte en 0...
+    ADDHI R6, #1                        //Y aumento una hora (acarreo se mantiene)
+    MOVLS R0, #0                        //Sino, el acarreo se hace 0
+    
+    //HORAS
+    CMP R7, 0x02                        //Comparo la unidad con 2
+    BEQ comparar_hora24                 //Si es igual, salta a comparar_hora24
+    CMP R6, 0x9                         //Comparo unidad de hora con 9
+    ITT HI                              //Si es mayor...
+    MOVHI R6, #0                        //Se convierte en 0 y...
+    ADDHI R7, R0                        //Aumento en una hora a la decena
+    MOV R0, #0                          //El acarreo se hace 0. Ya no hay mas incrementos
+    B guardar                           //Saltar a guardar
+
+comparar_hora24:
+    CMP R6, 0x03                        //Comparo la unidad de hora con 3
+    ITT HI                              //Si la decena de hora es 2 y la unidad mayor a 3...
+    MOVHI R6, #0                        //La unidad se hace 0
+    MOVHI R7, #0                        //La decena se hace 0
+
+guardar:
+    //GUARDAR/ACTUALIZAR
+    STRB R4, [R1]                       //Guardo en memoria la unidad de minutos
+    STRB R5, [R1, #1]                   //Guardo en memoria la decena de minutos
+    STRB R6, [R1, #2]                   //Guardo en memoria la unidad de horas
+    STRB R7, [R1, #3]                   //Guardo en memoria la decena de horas
+    
+    POP {R4,R5,R6,R7}                   //Recupero los registros r4, r5
+    BX LR                               //Sale de la subrutina
+
+//Refresco de los digitos
+refrescar_digito:
+    PUSH {R4, R5}                       //Guardo el valor de R4 y R5
+    LDR R5, =refresco                   //Apunto a la variable refresco (determina el digito a mostrar)
+    LDRB R4, [R5]                       //Traigo el valor de la variable
+    CMP R4, #4                          //Comparo con 4
+    IT EQ                               //Si es igual...
+    MOVEQ R4, #0                        //Se hace 0
+    LDR R2, =horas                      //Puntero al vector hora
+    LDRB R0, [R2, R4]                   //Traer numero correspondiente al digito a mostrar
+    LDR R2, =tabla_segmentos            //Puntero a la Tabla de segmentos
+    LDRB R0, [R2, R0]                   //Convierto a numero a 7seg
+    LDR R2, =tabla_digitos              //Puntero a la tabla de digitos
+    LDRB R1, [R2, R4]                   //Convierto el refresco al digito correspondiente
+    
+    // Apagado de todos bits gpio de los digitos
+    LDR R2,=GPIO_CLR0
+    LDR R3,=DIG_MASK
+    STR R3,[R2,#(DIG_GPIO << 2)]
+    // Escritura de los segmentos y digito correspondiente
+    LDR R2,=GPIO_PIN2                   //Puntero al GPIO de segmentos
+    STR R0,[R2]                         //Cargar los segmentos a encender
+    LDR R2,=GPIO_PIN0                   //Puntero al GPIO de digitos
+    STR R1,[R2]                         //Cargar el digito a encender
+    ADD R4, #1                          //Incremento R4: paso al siguiente digito a refrescar
+    STRB R4, [R5]                       //Actualizo la variable en memoria refresco
+    POP {R4, R5}                        //Recupero el valor de R4, R5
+    BX LR                               //Salir de la subrutina
+
+// Rutina de servicio para la interrupcion del GPIO
+.func gpio_isr
+gpio_isr:
+    // Leo el registro con la causa de interupción y borro los eventos
+    LDR R1,=PINT_BASE
+    LDR R0,[R1,#IST]
+    STR R0,[R1,#IST]
+    
+    // Verifico si la causa de interupcion es el primer boton
+    TST R0, #0x01
+    ITE NE
+    LDRNE R0,=toggle_led_1
+    LDREQ R0,=toggle_led_2
+
+    // Llamo a la rutina correspondiente
+    PUSH {LR}
+    BLX  R0
+    POP  {LR}
+
+    // Retorna al programa principal
+    BX   LR             
+    .pool
+    .endfunc
+
+// Rutina de servicio para la interrupcion del SysTick 
+// Según los calculos, la modifiqué para que se llame cada mili segundo
+// Sino, el multiplexado es muy lento y perceptble. Lo cual no es desado
+    .func systick_isr
+systick_isr:
+    PUSH {LR}                           //Conserva los registros que uso
+    BL   refrescar_digito               //Mosrar el digito con el numero correspondiente 
+    BL   actualizar_hora                //Actualizar la hora en memoria
+    POP  {LR}                           //Recupera los registros conservados
+    BX   LR                             //Retorna al programa principal
+    .pool                               //Almacena las constantes de código
+    .endfunc   
+
+// Rutina de servicio generica para excepciones
+// Esta rutina atiende todas las excepciones no utilizadas en el programa
+// Se declara como una medida de seguridad para evitar que el procesador
+// se pierda cuando hay una excepcion no prevista por el programador
+    .func handler
+handler:
+    LDR R0,=set_led_1                   // Apuntar al incio de una subrutina lejana
+    BLX R0                              // Llamar a la rutina para encender el led A
+    B handler                           // Lazo infinito para detener la ejecucion
+    .pool                               // Almacenar las constantes de codigo    
+    .endfunc
+
+tabla_segmentos:    
+/*0*/    .byte (SEG_A_MASK | SEG_B_MASK | SEG_C_MASK | SEG_D_MASK | SEG_E_MASK | SEG_F_MASK)
+/*1*/    .byte (SEG_B_MASK | SEG_C_MASK)
+/*2*/    .byte (SEG_A_MASK | SEG_B_MASK | SEG_D_MASK | SEG_E_MASK | SEG_G_MASK)
+/*3*/    .byte (SEG_A_MASK | SEG_B_MASK | SEG_C_MASK | SEG_D_MASK | SEG_G_MASK)
+/*4*/    .byte (SEG_B_MASK | SEG_C_MASK | SEG_F_MASK | SEG_G_MASK)
+/*5*/    .byte (SEG_A_MASK | SEG_C_MASK | SEG_D_MASK | SEG_F_MASK | SEG_G_MASK)
+/*6*/    .byte (SEG_A_MASK | SEG_C_MASK | SEG_D_MASK | SEG_E_MASK | SEG_F_MASK | SEG_G_MASK)
+/*7*/    .byte (SEG_A_MASK | SEG_B_MASK | SEG_C_MASK)
+/*8*/    .byte (SEG_A_MASK | SEG_B_MASK | SEG_C_MASK | SEG_D_MASK | SEG_E_MASK | SEG_F_MASK | SEG_G_MASK)
+/*9*/    .byte (SEG_A_MASK | SEG_B_MASK | SEG_C_MASK | SEG_F_MASK | SEG_G_MASK)
+tabla_digitos:
+   .byte (DIG_1_MASK)
+   .byte (DIG_2_MASK)
+   .byte (DIG_3_MASK)
+   .byte (DIG_4_MASK)
+
+/*****************************************************************************************************/
+/*                                                                                  */
+/*Laboratorio Número 3 - Interrupciones y GPIO - Problema 3: Reloj                                   */
+/*Sistemas con Microprocesadores y Microcontroladores - Ingeniería en Computación                    */
+/*Facultad de Ciencias Exactas y Tecnología - Universidad Nacional de Tucumán                        */
+/*****************************************************************************************************/
